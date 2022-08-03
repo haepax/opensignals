@@ -15,7 +15,7 @@ class Yahoo(Provider):
     """Implementation of a stock data price provider that uses the Yahoo! Finance API"""
 
     def download_ticker(self, ticker: str, start: dt.datetime, end: dt.datetime) -> Tuple[str, pd.DataFrame]:
-        """dowload data for a given ticker"""
+        """download data for a given ticker"""
 
         def empty_df() -> pd.DataFrame:
             return pd.DataFrame(columns=[
@@ -35,12 +35,17 @@ class Yahoo(Provider):
             events='div,splits',
         )
         while tries > 0:
+            data_json = {}
             tries -= 1
             try:
                 data = requests.get(
                     url=url,
                     params=params,
-                    headers={'User-Agent': user_agent}
+                    headers={
+                        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+                        "accept-encoding": "gzip, deflate, br",
+                        "accept-language": "en-US,en;q=0.9",
+                        'user-agent': user_agent}
                 )
                 data_json = data.json()
                 quotes = data_json["chart"]["result"][0]
@@ -75,7 +80,10 @@ class Yahoo(Provider):
                 return ticker, df.drop_duplicates().dropna()
 
             except Exception:
-                _time.sleep(backoff)
-                backoff = min(backoff * 2, 30)
+                if 'error' in data_json['chart'] and data_json['chart']['error']['description'] == "No data found, symbol may be delisted":
+                    break
+                else:
+                    _time.sleep(backoff)
+                    backoff = min(backoff * 2, 30)
 
         return ticker, empty_df()

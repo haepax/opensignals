@@ -118,7 +118,7 @@ class RSI(FeatureGenerator):
         logger.debug('generating RSI quintiles...')
         col = f'{feature_prefix_name}_quintile'
         ticker_data[col] = date_groups[feature_prefix_name].transform(
-            lambda group: pd.qcut(group, 5, labels=False, duplicates='drop')
+            lambda group: pd.qcut(group, 5, labels=False, duplicates='drop') if not group.isna().all() else None
         )
         ticker_data.dropna(inplace=True)
         ticker_data[col] = ticker_data[col].astype('int8')
@@ -207,7 +207,7 @@ class SMA(FeatureGenerator):
         logger.debug('generating SMA quintiles...')
         col = f'{feature_prefix_name}_quintile'
         ticker_data[col] = date_groups[feature_prefix_name].transform(
-            lambda group: pd.qcut(group, 5, labels=False, duplicates='drop')
+            lambda group: pd.qcut(group, 5, labels=False, duplicates='drop') if not group.isna().all() else None
         )
         ticker_data.dropna(inplace=True)
         ticker_data[col] = ticker_data[col].astype('int8')
@@ -242,4 +242,96 @@ class SMA(FeatureGenerator):
         feature_names = (list(feat_quintile_lag.values()) +
                          list(feat_sma_diff.values()) +
                          list(feat_sma_diff_abs.values()))
+        return ticker_data, feature_names
+
+
+class MACD(FeatureGenerator):
+    """Moving Average Convergence Divergence"""
+
+    def __init__(self, num_days: int = 5, variable: str = 'adj_close'):
+        super().__init__()
+        self.steps = _parse_num_days(num_days)
+        self.variable = variable
+
+    @staticmethod
+    def moving_average_convergence_divergence(prices: pd.Series) -> pd.Series:
+        '''
+        Computes MACD given a price series
+        See more here https://www.investopedia.com/terms/m/macd.asp
+        '''
+        macd = (
+                prices.ewm(span=12, adjust=False).mean()  # 12 period EMA
+                - prices.ewm(span=26, adjust=False).mean()  # 26 period EMA
+        )
+        return macd
+
+    def get_feature_names(self, prefix_name: str) -> Tuple[Dict[int, str], Dict[int, str], Dict[int, str]]:
+        # define column names of features, target, and prediction
+        feat_quintile_lag = {step: f'{prefix_name}_quintile_lag_{step}'
+                             for step in self.steps}
+        feat_macd_diff = {step: f'{prefix_name}_diff_{step}'
+                         for step in self.steps[:-1]}
+        feat_macd_diff_abs = {step: f'{prefix_name}_abs_diff_{step}'
+                             for step in self.steps[:-1]}
+        return feat_quintile_lag, feat_macd_diff, feat_macd_diff_abs
+
+    def generate_features(self,
+                          ticker_data: pd.DataFrame,
+                          feature_prefix: Optional[str] = None) -> Tuple[pd.DataFrame, List[str]]:
+        logger.info(f'generating MACD for {self.variable}...')
+
+        feature_prefix_name = f'MACD_{self.variable}'
+        if feature_prefix:
+            feature_prefix_name = f'{feature_prefix}_{feature_prefix_name}'
+
+        ticker_groups = ticker_data.groupby('bloomberg_ticker')
+        ticker_data[feature_prefix_name] = \
+            ticker_groups[self.variable].transform(
+                lambda x: self.moving_average_convergence_divergence(x)
+        )
+
+        # group by era (date)
+        logger.debug('grouping by dates...')
+        date_groups = ticker_data.groupby('date')
+
+        # create quintile labels within each era, useful for learning
+        # srelative ranking
+        logger.debug('generating MACD quintiles...')
+        col = f'{feature_prefix_name}_quintile'
+        ticker_data[col] = date_groups[feature_prefix_name].transform(
+            lambda group: pd.qcut(group, 5, labels=False, duplicates='drop') if not group.isna().all() else None
+        )
+        ticker_data.dropna(inplace=True)
+        ticker_data[col] = ticker_data[col].astype('int8')
+
+        (
+            feat_quintile_lag, feat_macd_diff, feat_macd_diff_abs
+        ) = self.get_feature_names(feature_prefix_name)
+
+        # create lagged features grouped by ticker
+        logger.debug('grouping by ticker...')
+        ticker_groups = ticker_data.groupby('bloomberg_ticker')
+
+        # lag 0 is that day's value, lag 1 is yesterday's value, etc
+        logger.debug('generating lagged MACD quintiles...')
+        for day in self.steps:
+            col = f'{feature_prefix_name}_quintile'
+            ticker_data[feat_quintile_lag[day]] = ticker_groups[col].transform(
+                lambda group: group.shift(day)
+            ).astype('float16')
+
+        logger.debug('generating lagged MACD diffs...')
+
+        for i in range(len(self.steps) - 1):
+            step = self.steps[i]
+            ticker_data[feat_macd_diff[step]] = (
+                ticker_data[feat_quintile_lag[step]] -
+                ticker_data[feat_quintile_lag[self.steps[i + 1]]]
+            )
+            ticker_data[feat_macd_diff_abs[step]] = \
+                np.abs(ticker_data[feat_macd_diff[step]])
+
+        feature_names = (list(feat_quintile_lag.values()) +
+                         list(feat_macd_diff.values()) +
+                         list(feat_macd_diff_abs.values()))
         return ticker_data, feature_names
