@@ -110,6 +110,28 @@ class Provider(ABC):
         live_data = live_data.set_index('date')
         return live_data  # type: ignore
 
+    def get_live_data_only(
+            self,
+            db_dir: pathlib.Path,
+            features_generators: Optional[List[features.FeatureGenerator]] = None,
+            last_friday: Optional[dt.datetime] = None,
+            target: str = 'target_20d',
+            feature_prefix: Optional[str] = None
+    ):
+        last_friday = dt.datetime.today() - relativedelta(weekday=FR(-1))
+        if features_generators is None:
+            features_generators = []
+        ticker_data = self.get_ticker_data(db_dir)
+        ticker_universe = pd.read_csv(SIGNALS_UNIVERSE)
+        ticker_data = ticker_data[ticker_data.bloomberg_ticker.isin(
+            ticker_universe['bloomberg_ticker'])]
+        feature_names = []
+        for features_generator in features_generators:
+            ticker_data, feature_names_aux = features_generator.generate_features(ticker_data, feature_prefix)
+            feature_names.extend(feature_names_aux)
+        live_data = Provider.get_live_data(ticker_data, last_friday)
+        return live_data, feature_names
+
     @staticmethod
     def get_train_test_data(ticker_data: pd.DataFrame,
                             feature_names: List[str],
