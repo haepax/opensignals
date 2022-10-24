@@ -135,7 +135,8 @@ class Provider(ABC):
     @staticmethod
     def get_train_test_data(ticker_data: pd.DataFrame,
                             feature_names: List[str],
-                            targets: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+                            targets: pd.DataFrame,
+                            drop_na_target=True) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """merge our feature data with Numerai targets"""
         ml_data = pd.merge(
             ticker_data, targets,
@@ -143,9 +144,12 @@ class Provider(ABC):
             how='left'
         )
 
-        logger.info(f'Found {ml_data.target.isna().sum()}'
-                    'rows without target, filling with 0.5')
-        ml_data['target'] = ml_data['target'].fillna(0.5)
+        if drop_na_target:
+            ml_data = ml_data.dropna(subset=['target'])
+        else:
+            logger.info(f'Found {ml_data.target.isna().sum()}'
+                        'rows without target, filling with 0.5')
+            ml_data['target'] = ml_data['target'].fillna(0.5)
 
         ml_data = ml_data.set_index('date')
 
