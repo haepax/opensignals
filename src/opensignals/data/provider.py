@@ -126,9 +126,12 @@ class Provider(ABC):
         ticker_data = ticker_data[ticker_data.bloomberg_ticker.isin(
             ticker_universe['bloomberg_ticker'])]
         feature_names = []
+        days_slice_len = max([getattr(fg, 'interval', 0) + len(getattr(fg, 'steps', [])) for fg in features_generators]) * 1.5
+        ticker_data = ticker_data[ticker_data.date > last_friday - dt.timedelta(days=days_slice_len)]
         for features_generator in features_generators:
             ticker_data, feature_names_aux = features_generator.generate_features(ticker_data, feature_prefix)
             feature_names.extend(feature_names_aux)
+        # ticker_data.dropna(inplace=True)
         live_data = Provider.get_live_data(ticker_data, last_friday)
         return live_data, feature_names
 

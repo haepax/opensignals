@@ -120,8 +120,8 @@ class RSI(FeatureGenerator):
         ticker_data[col] = date_groups[feature_prefix_name].transform(
             lambda group: pd.qcut(group, 5, labels=False, duplicates='drop') if not group.isna().all() else None
         )
-        ticker_data.dropna(inplace=True)
-        ticker_data[col] = ticker_data[col].astype('int8')
+        # ticker_data.dropna(inplace=True)
+        # ticker_data[col] = ticker_data[col].astype('int8')
 
         (
             feat_quintile_lag, feat_rsi_diff, feat_rsi_diff_abs
@@ -209,8 +209,8 @@ class SMA(FeatureGenerator):
         ticker_data[col] = date_groups[feature_prefix_name].transform(
             lambda group: pd.qcut(group, 5, labels=False, duplicates='drop') if not group.isna().all() else None
         )
-        ticker_data.dropna(inplace=True)
-        ticker_data[col] = ticker_data[col].astype('int8')
+        # ticker_data.dropna(inplace=True)
+        # ticker_data[col] = ticker_data[col].astype('int8')
 
         (
             feat_quintile_lag, feat_sma_diff, feat_sma_diff_abs
@@ -301,8 +301,8 @@ class MACD(FeatureGenerator):
         ticker_data[col] = date_groups[feature_prefix_name].transform(
             lambda group: pd.qcut(group, 5, labels=False, duplicates='drop') if not group.isna().all() else None
         )
-        ticker_data.dropna(inplace=True)
-        ticker_data[col] = ticker_data[col].astype('int8')
+        # ticker_data.dropna(inplace=True)
+        # ticker_data[col] = ticker_data[col].astype('int8')
 
         (
             feat_quintile_lag, feat_macd_diff, feat_macd_diff_abs

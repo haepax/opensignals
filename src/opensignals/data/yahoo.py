@@ -80,7 +80,7 @@ class Yahoo(Provider):
                 return ticker, df.drop_duplicates().dropna()
 
             except Exception:
-                if 'error' in data_json['chart'] and data_json['chart']['error']['description'] == "No data found, symbol may be delisted":
+                if 'error' in data_json.get('chart', "") and data_json['chart']['error']['description'] == "No data found, symbol may be delisted":
                     break
                 else:
                     _time.sleep(backoff)
