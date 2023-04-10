@@ -118,7 +118,14 @@ class Provider(ABC):
             target: str = 'target_20d',
             feature_prefix: Optional[str] = None
     ):
-        last_friday = dt.datetime.today() - relativedelta(weekday=FR(-1))
+        # check weekday
+        # if weekend or monday, submit as usual
+        # else take the previous day
+        today = dt.datetime.today()
+        if today.isoweekday() in [6, 7, 1]:  # weekend!
+            last_day = dt.datetime.today() - relativedelta(weekday=FR(-1))
+        else:
+            last_day = dt.datetime.today()
         if features_generators is None:
             features_generators = []
         ticker_data = self.get_ticker_data(db_dir)
