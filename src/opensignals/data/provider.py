@@ -92,21 +92,21 @@ class Provider(ABC):
         return pd.concat([ticker_not_found, tickers_outdated])  # type: ignore
 
     @staticmethod
-    def get_live_data(ticker_data: pd.DataFrame, last_friday: dt.date) -> pd.DataFrame:
-        date_string = last_friday.strftime('%Y-%m-%d')
+    def get_live_data(ticker_data: pd.DataFrame, last_day: dt.date) -> pd.DataFrame:
+        date_string = last_day.strftime('%Y-%m-%d')
         live_data = ticker_data[ticker_data.date == date_string].copy()
 
         # get data from the day before, for markets that were closed
-        last_thursday = last_friday - relativedelta(days=1)
-        thursday_date_string = last_thursday.strftime('%Y-%m-%d')
-        thursday_data = ticker_data[ticker_data.date == thursday_date_string]
+        previous_day = last_day - relativedelta(days=1)
+        previous_day_date_string = previous_day.strftime('%Y-%m-%d')
+        previous_day_data = ticker_data[ticker_data.date == previous_day_date_string]
 
         # Only select tickers than aren't already present in live_data
-        thursday_data = thursday_data[
-            ~thursday_data.bloomberg_ticker.isin(live_data.bloomberg_ticker.values)
+        previous_day_data = previous_day_data[
+            ~previous_day_data.bloomberg_ticker.isin(live_data.bloomberg_ticker.values)
         ].copy()
 
-        live_data = pd.concat([live_data, thursday_data])
+        live_data = pd.concat([live_data, previous_day_data])
         live_data = live_data.set_index('date')
         return live_data  # type: ignore
 
@@ -134,12 +134,12 @@ class Provider(ABC):
             ticker_universe['bloomberg_ticker'])]
         feature_names = []
         days_slice_len = max([getattr(fg, 'interval', 0) + len(getattr(fg, 'steps', [])) for fg in features_generators]) * 1.5
-        ticker_data = ticker_data[ticker_data.date > last_friday - dt.timedelta(days=days_slice_len)]
+        ticker_data = ticker_data[ticker_data.date > last_day - dt.timedelta(days=days_slice_len)]
         for features_generator in features_generators:
             ticker_data, feature_names_aux = features_generator.generate_features(ticker_data, feature_prefix)
             feature_names.extend(feature_names_aux)
         # ticker_data.dropna(inplace=True)
-        live_data = Provider.get_live_data(ticker_data, last_friday)
+        live_data = Provider.get_live_data(ticker_data, last_day)
         return live_data, feature_names
 
     @staticmethod
