@@ -34,7 +34,7 @@ class VarChange(FeatureGenerator):
 
         ticker_data[f'{feature_prefix_name}_diff'] = \
             ticker_data[self.variable] / ticker_data[feature_prefix_name] - 1
-        return ticker_data, []
+        return ticker_data, [f'{feature_prefix_name}_diff']
 
 
 def _parse_num_days(num_days: Union[int, List[int]]) -> List[int]:

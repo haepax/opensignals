@@ -116,7 +116,9 @@ class Provider(ABC):
             features_generators: Optional[List[features.FeatureGenerator]] = None,
             last_friday: Optional[dt.datetime] = None,
             target: str = 'target_20d',
-            feature_prefix: Optional[str] = None
+            feature_prefix: Optional[str] = None,
+            min_window = 10,
+            window_buffer = 1.5
     ):
         # check weekday
         # if weekend or monday, submit as usual
@@ -133,7 +135,7 @@ class Provider(ABC):
         ticker_data = ticker_data[ticker_data.bloomberg_ticker.isin(
             ticker_universe['bloomberg_ticker'])]
         feature_names = []
-        days_slice_len = max([getattr(fg, 'interval', 0) + len(getattr(fg, 'steps', [])) for fg in features_generators]) * 1.5
+        days_slice_len = max([getattr(fg, 'interval', 0) + len(getattr(fg, 'steps', [])) for fg in features_generators]) * window_buffer or min_window
         ticker_data = ticker_data[ticker_data.date > last_day - dt.timedelta(days=days_slice_len)]
         for features_generator in features_generators:
             ticker_data, feature_names_aux = features_generator.generate_features(ticker_data, feature_prefix)
